@@ -405,10 +405,16 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
 
     @staticmethod
     def _serialize_builder_parameters(parameters):
+        parameters = parameters.copy()  # create copy to not modify original dict
+
         # Codes
-        parameters["dos_code"] = getattr(parameters["dos_code"], "uuid", None)
-        parameters["projwfc_code"] = getattr(parameters["projwfc_code"], "uuid", None)
-        parameters["pw_code"] = getattr(parameters["pw_code"], "uuid", None)
+        def _get_uuid(code):
+            return None if code is None else str(code.uuid)
+
+        parameters["dos_code"] = _get_uuid(parameters["dos_code"])
+        parameters["projwfc_code"] = _get_uuid(parameters["projwfc_code"])
+        parameters["pw_code"] = _get_uuid(parameters["pw_code"])
+
         # Protocol
         parameters["electronic_type"] = parameters["electronic_type"].value
         parameters["relax_type"] = parameters["relax_type"].value
@@ -417,22 +423,16 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
 
     @staticmethod
     def _deserialize_builder_parameters(parameters):
+        parameters = parameters.copy()  # create copy to not modify original dict
+
         # Codes
-        parameters["dos_code"] = (
-            None
-            if parameters["dos_code"] is None
-            else load_node(uuid=parameters["dos_code"])
-        )
-        parameters["projwfc_code"] = (
-            None
-            if parameters["projwfc_code"] is None
-            else load_node(uuid=parameters["projwfc_code"])
-        )
-        parameters["pw_code"] = (
-            None
-            if parameters["pw_code"] is None
-            else load_node(uuid=parameters["pw_code"])
-        )
+        def _load_code(uuid):
+            return None if uuid is None else load_node(uuid=uuid)
+
+        parameters["dos_code"] = _load_code(parameters["dos_code"])
+        parameters["projwfc_code"] = _load_code(parameters["projwfc_code"])
+        parameters["pw_code"] = _load_code(parameters["pw_code"])
+
         # Protocol
         parameters["electronic_type"] = ElectronicType(parameters["electronic_type"])
         parameters["relax_type"] = RelaxType(parameters["relax_type"])
@@ -469,11 +469,14 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
         assert self.input_structure is not None
 
         builder_parameters = self.builder_parameters.copy()
+        builder_parameters_for_extras = builder_parameters.copy()
+
         run_bands = builder_parameters.pop("run_bands")
         run_pdos = builder_parameters.pop("run_pdos")
+
         builder = QeAppWorkChain.get_builder_from_protocol(
             structure=self.input_structure,
-            **self.deserialize_builder_parameters(builder_parameters)
+            **self._deserialize_builder_parameters(builder_parameters)
         )
 
         if not run_bands:
@@ -488,6 +491,7 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
         update_resources(builder, resources)
 
         self.process = submit(builder)
+        self.process.set_extra("builder_parameters", builder_parameters_for_extras)
 
 
 class ViewQeAppWorkChainStatusAndResultsStep(ipw.VBox, WizardAppWidgetStep):
