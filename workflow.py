@@ -539,8 +539,12 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
             self.workchain_config.simulation_protocol.value = bp["protocol"]
             self.pseudo_family_selector.value = bp["pseudo_family"]
 
-            relax_type = bp.get("relax_type", RelaxType["POSITIONS"])
-            self.workchain_config.geo_opt_type.value = relax_type.value.upper()
+            relax_type = bp.get("relax_type", RelaxType["NONE"])
+            self.workchain_config.geo_opt_type.value = (
+                "POSITIONS"
+                if relax_type is RelaxType["NONE"]
+                else relax_type.value.upper()
+            )
             self.workchain_config.run_geo_opt.value = (
                 relax_type is not RelaxType["NONE"]
             )
