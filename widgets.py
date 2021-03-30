@@ -253,6 +253,8 @@ class ResourceSelectionWidget(ipw.HBox):
         simply increasing either cores or nodes may not have the desired effect.</p></div>"""
     )
 
+    disabled = traitlets.Bool()
+
     def __init__(self, **kwargs):
         extra = {
             "style": {"description_width": "150px"},
@@ -271,6 +273,10 @@ class ResourceSelectionWidget(ipw.HBox):
         # Update the total # of CPUs int text:
         self.number_of_nodes.observe(self._update_total_num_cpus, "value")
         self.cpus_per_node.observe(self._update_total_num_cpus, "value")
+
+        ipw.dlink((self, "disabled"), (self.number_of_nodes, "disabled"))
+        ipw.dlink((self, "disabled"), (self.cpus_per_node, "disabled"))
+        ipw.dlink((self, "disabled"), (self.total_num_cpus, "disabled"))
 
         super().__init__(
             children=[
