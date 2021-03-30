@@ -278,7 +278,7 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
     input_structure = traitlets.Instance(StructureData, allow_none=True)
     process = traitlets.Instance(ProcessNode, allow_none=True)
     disabled = traitlets.Bool()
-    builder_parameters = traitlets.Dict(read_only=True)  # TODO: accept values
+    builder_parameters = traitlets.Dict()
 
     def __init__(self, **kwargs):
         self.workchain_config = WorkChainConfig()
