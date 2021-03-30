@@ -37,6 +37,9 @@ def update_resources(builder, resources):
 
 
 class WorkChainConfig(ipw.VBox):
+
+    disabled = traitlets.Bool()
+
     def __init__(self, **kwargs):
 
         self.run_geo_opt = ipw.Checkbox(description="Optimize geometry", value=True)
@@ -46,7 +49,7 @@ class WorkChainConfig(ipw.VBox):
         ipw.dlink(
             (self.run_geo_opt, "value"),
             (self.geo_opt_type, "disabled"),
-            transform=lambda v: not v,
+            transform=lambda v: self.disabled or not v,
         )
 
         self.run_bands = ipw.Checkbox(description="Calculate band structure")
@@ -56,6 +59,12 @@ class WorkChainConfig(ipw.VBox):
         self.simulation_protocol = ipw.Dropdown(
             options=["fast", "moderate", "precise"], value="moderate"
         )
+
+        ipw.dlink((self, "disabled"), (self.run_geo_opt, "disabled"))
+        ipw.dlink((self, "disabled"), (self.geo_opt_type, "disabled"))
+        ipw.dlink((self, "disabled"), (self.run_bands, "disabled"))
+        ipw.dlink((self, "disabled"), (self.run_pdos, "disabled"))
+        ipw.dlink((self, "disabled"), (self.simulation_protocol, "disabled"))
 
         super().__init__(
             children=[
@@ -292,6 +301,12 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
         self.codes_selector.projwfc.observe(self._update_state, "selected_code")
         self.workchain_config.run_pdos.observe(self._update_state, "value")
 
+        ipw.dlink((self, "disabled"), (self.workchain_config, "disabled"))
+        ipw.dlink((self, "disabled"), (self.resources_config, "disabled"))
+        # ipw.dlink((self, "disabled"), (self.options_config, "disabled"))
+        # ipw.dlink((self, "disabled"), (self.pseudos_family_selector, "disabled"))
+        # ipw.dlink((self, "disabled"), (self.codes_selector, "disabled"))
+
         self._setup_builder_parameters_update()
 
         tab = ipw.Tab(
@@ -364,13 +379,18 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
             ]
         )
 
+    @traitlets.default("disabled")
+    def _default_disabled(self):
+        # The widget is disabled by default.
+        return True
+
     def _get_state(self):
 
         # Input structure not specified.
         if self.input_structure is None:
             return self.State.INIT
 
-        # Process is already running.
+        # Process was already submitted.
         if self.process is not None:
             return self.State.SUCCESS
 
