@@ -286,7 +286,41 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
         )
 
         self.submit_button.on_click(self._on_submit_button_clicked)
-        super().__init__(children=[tab, self.submit_button])
+
+        # DEBUG: Optionally Show builder parameters at the bottom
+        self._update_builder_parameters()
+        from pprint import pformat
+
+        self.builder_parameters_view = ipw.Textarea(
+            layout=ipw.Layout(width="auto", visibility="hidden"), disabled=True
+        )
+        ipw.dlink(
+            (self, "builder_parameters"),
+            (self.builder_parameters_view, "value"),
+            transform=lambda p: pformat(p, indent=2, width=200),
+        )
+
+        def _observe_show_builder_parameters_view(change):
+            self.builder_parameters_view.layout.visibility = (
+                "visible" if change["new"] else "hidden"
+            )
+
+        self.show_builder_parameters_view = ipw.Checkbox(
+            description="Show all parameters"
+        )
+        self.show_builder_parameters_view.observe(
+            _observe_show_builder_parameters_view, ["value"]
+        )
+        # END DEBUG
+
+        super().__init__(
+            children=[
+                tab,
+                self.show_builder_parameters_view,
+                self.builder_parameters_view,
+                self.submit_button,
+            ]
+        )
 
     def _get_state(self):
 
