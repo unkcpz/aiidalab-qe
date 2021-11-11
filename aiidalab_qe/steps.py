@@ -31,6 +31,7 @@ from aiidalab_qe_workchain import QeAppWorkChain
 
 StructureData = DataFactory("structure")
 Float = DataFactory("float")
+Str = DataFactory("str")
 
 
 def update_resources(builder, resources):
@@ -145,6 +146,76 @@ class WorkChainSettings(ipw.VBox):
             ],
             **kwargs,
         )
+
+class SmearingSettings(ipw.VBox):
+
+    smearing_description = ipw.HTML(
+        """<p>
+        The smearing type and width is set by the chosen <b>protocol</b>.
+        Untick the box to override the default.
+    </p>"""
+    )
+
+    # The default of `smearing` and `degauss` the type and width 
+    # must be linked to the `protocol`
+    degauss_default = traitlets.Float(default_value=0.01)
+    smearing_default = traitlets.Unicode(default_value='cold')
+
+    def __init__(self, **kwargs):
+
+        self.override_protocol_smearing = ipw.Checkbox(
+            description="Override default smearing setting.",
+            indent=False,
+            value=False,
+        )
+        self.degauss = ipw.FloatText(
+            value=self.degauss_default,
+            step=0.005,
+            description="Degauss (Ry):",
+            disabled=False,
+            style={"description_width": "initial"},
+        )
+        self.smearing = ipw.Dropdown(
+            options=['cold', 'gaussian', 'fermi-dirac', 'methfessel-paxton'],
+            value=self.smearing_default,
+            description="Smearing type:",
+            disabled=False,
+            style={"description_width": "initial"},
+        )
+        ipw.dlink(
+            (self.override_protocol_smearing, "value"),
+            (self.degauss, "disabled"),
+            lambda override: not override,
+        )
+        ipw.dlink(
+            (self.override_protocol_smearing, "value"),
+            (self.smearing, "disabled"),
+            lambda override: not override,
+        )
+        self.degauss.observe(self.set_smearing, "value")
+        self.smearing.observe(self.set_smearing, "value")
+        self.override_protocol_smearing.observe(self.set_smearing, "value")
+
+        super().__init__(
+            children=[
+                self.smearing_description,
+                ipw.HBox([self.override_protocol_smearing, self.degauss, self.smearing]),
+            ],
+            layout=ipw.Layout(justify_content="space-between"),
+            **kwargs,
+        )
+
+    def set_smearing(self, _=None):
+        self.degauss.value = (
+            self.degauss.value
+            if self.override_protocol_smearing.value
+            else self.degauss_default
+        )
+        self.smearing.value = (
+            self.smearing.value
+            if self.override_protocol_smearing.value
+            else self.smearing_default
+        )       
 
 
 class KpointSettings(ipw.VBox):
@@ -262,6 +333,7 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
         self.workchain_settings.bands_run.observe(self._update_state, "value")
 
         self.kpoints_settings = KpointSettings()
+        self.smearing_settings = SmearingSettings()
         self.pseudo_family_selector = PseudoFamilySelector()
         self.codes_selector = CodeSettings()
         self.resources_config = ResourceSelectionWidget()
@@ -345,7 +417,7 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
             self.tab.set_title(2, "Codes & Resources")
             self.tab.children = [
                 self.workchain_settings,
-                ipw.VBox(children=[self.pseudo_family_selector, self.kpoints_settings]),
+                ipw.VBox(children=[self.pseudo_family_selector, self.kpoints_settings, self.smearing_settings]),
                 ipw.VBox(children=[self.codes_selector, self.resources_config]),
             ]
         else:
@@ -571,6 +643,13 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
             parameters[
                 "kpoints_distance_override"
             ] = self.kpoints_settings.kpoints_distance.value
+        if self.smearing_settings.override_protocol_smearing.value:
+            parameters[
+                "smearing_override"
+            ] = self.smearing_settings.smearing.value
+            parameters[
+                "degauss_override"
+            ] =self.smearing_settings.degauss.value
 
         return parameters
 
@@ -603,6 +682,16 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
                     "kpoints_distance_override"
                 ]
                 self.kpoints_settings.override_protocol_kpoints.value = True
+            if parameters.get("degauss_override", None) is not None:
+                self.smearing_settings.degauss.value = parameters[
+                    "degauss_override"
+                ]
+                self.smearing_settings.override_protocol_smearing.value = True
+            if parameters.get("smearing_override", None) is not None:
+                self.smearing_settings.smearing.value = parameters[
+                    "smearing_override"
+                ]
+                self.smearing_settings.override_protocol_smearing.value = True
 
     def submit(self, _=None):
 
@@ -625,6 +714,14 @@ class SubmitQeAppWorkChainStep(ipw.VBox, WizardAppWidgetStep):
         if "kpoints_distance_override" in parameters:
             builder.kpoints_distance_override = Float(
                 parameters["kpoints_distance_override"]
+            )
+        if "degauss_override" in parameters:
+            builder.degauss_override = Float(
+                parameters["degauss_override"]
+            )
+        if "smearing_override" in parameters:
+            builder.smearing_override = Str(
+                parameters["smearing_override"]
             )
 
         if not run_bands:
