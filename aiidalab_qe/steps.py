@@ -151,7 +151,7 @@ class KpointSettings(ipw.VBox):
 
     kpoints_distance_description = ipw.HTML(
         """<p>
-        The k-points mesh density is set by the chosen <b>protocol</b>.
+        The k-points mesh density of scf calculation is set by the chosen <b>protocol</b>.
         Untick the box to override the default.
     </p>"""
     )
